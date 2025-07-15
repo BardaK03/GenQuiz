@@ -5,8 +5,9 @@ import { useSearchParams } from "next/navigation";
 
 interface Question {
   question: string;
-  options: string[];
-  correctAnswer: number;
+  options?: string[];
+  correctAnswer: number | string;
+  type?: string;
 }
 
 export default function QuizPage() {
@@ -17,6 +18,7 @@ export default function QuizPage() {
 
   const numberOfQuestions = searchParams.get("questions");
   const subject = searchParams.get("subject") || "general knowledge";
+  const questionType = searchParams.get("type") || "multiple-choice";
 
   useEffect(() => {
     if (numberOfQuestions) {
@@ -37,6 +39,7 @@ export default function QuizPage() {
         body: JSON.stringify({
           numberOfQuestions: parseInt(numberOfQuestions!),
           subject: subject,
+          type: questionType,
         }),
       });
 
@@ -138,30 +141,42 @@ export default function QuizPage() {
             </h2>
 
             <div className="space-y-3">
-              {question.options.map((option, optionIndex) => (
-                <div
-                  key={optionIndex}
-                  className={`p-4 rounded-lg border-2 ${
-                    optionIndex === question.correctAnswer
-                      ? "border-green-500 bg-green-50"
-                      : "border-gray-200 bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700">
-                      <span className="font-medium text-gray-600 mr-3">
-                        {String.fromCharCode(65 + optionIndex)}.
+              {question.options ? (
+                // Multiple choice questions
+                question.options.map((option, optionIndex) => (
+                  <div
+                    key={optionIndex}
+                    className={`p-4 rounded-lg border-2 ${
+                      optionIndex === question.correctAnswer
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200 bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-700">
+                        <span className="font-medium text-gray-600 mr-3">
+                          {String.fromCharCode(65 + optionIndex)}.
+                        </span>
+                        {option}
                       </span>
-                      {option}
+                      {optionIndex === question.correctAnswer && (
+                        <span className="text-green-600 font-medium text-sm">
+                          ✓ Correct Answer
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                // Short answer questions - show only the question
+                <div className="p-4 rounded-lg border-2 border-blue-500 bg-blue-50">
+                  <div className="text-gray-700">
+                    <span className="font-medium text-blue-600">
+                      Întrebare cu răspuns scurt
                     </span>
-                    {optionIndex === question.correctAnswer && (
-                      <span className="text-green-600 font-medium text-sm">
-                        ✓ Correct Answer
-                      </span>
-                    )}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         ))}

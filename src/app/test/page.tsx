@@ -8,6 +8,7 @@ export default function TestPage() {
     null
   );
   const [selectedSubject, setSelectedSubject] = useState<string>("");
+  const [questionType, setQuestionType] = useState<string>("");
   const router = useRouter();
 
   const subjects = [
@@ -25,15 +26,31 @@ export default function TestPage() {
     "Respiratia",
   ];
 
+  const questionTypes = [
+    {
+      value: "multiple-choice",
+      label: "Întrebări cu variante de răspuns (grile)",
+    },
+    {
+      value: "short-answer",
+      label: "Întrebări cu răspuns scurt (definiții, concepte)",
+    },
+  ];
+
   const handleStartTest = () => {
-    if (selectedQuestions && selectedSubject) {
-      // Navigate to the quiz page with parameters
-      router.push(
-        `/quiz?questions=${selectedQuestions}&subject=${encodeURIComponent(
-          selectedSubject
-        )}`
+    if (!selectedQuestions || !selectedSubject || !questionType) {
+      alert(
+        "Te rugăm să selectezi numărul de întrebări, materia și tipul de întrebări."
       );
+      return;
     }
+
+    // Navigate to the quiz page with parameters
+    router.push(
+      `/quiz?questions=${selectedQuestions}&subject=${encodeURIComponent(
+        selectedSubject
+      )}&type=${questionType}`
+    );
   };
 
   return (
@@ -74,6 +91,34 @@ export default function TestPage() {
                     className="text-gray-800"
                   >
                     {subject}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="question-type"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Tipul de întrebări:
+              </label>
+              <select
+                id="question-type"
+                value={questionType}
+                onChange={(e) => setQuestionType(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+              >
+                <option value="" className="text-gray-800">
+                  Selectează tipul de întrebări
+                </option>
+                {questionTypes.map((type) => (
+                  <option
+                    key={type.value}
+                    value={type.value}
+                    className="text-gray-800"
+                  >
+                    {type.label}
                   </option>
                 ))}
               </select>
