@@ -8,7 +8,8 @@ export default function Sidebar() {
 
   const navItems = [
     { name: "Lecție", path: "/lectie" },
-    { name: "test", path: "/test" },
+    { name: "Test", path: "/test" },
+    { name: "Lecții Salvate", path: "/saved-lessons" },
     { name: "Resurse SmartLab", path: "/resurse" },
   ];
 

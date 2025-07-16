@@ -76,3 +76,22 @@ export async function getLessonsBySubject(subject: string): Promise<Lesson[]> {
   const result = await pool.query(query, [subject]);
   return result.rows;
 }
+
+// New functions for lesson management
+export async function updateLesson(id: number, subject: string, content: string): Promise<Lesson | null> {
+  const query = `
+    UPDATE lessons 
+    SET subject = $1, content = $2, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $3
+    RETURNING *
+  `;
+  
+  const result = await pool.query(query, [subject, content, id]);
+  return result.rows[0] || null;
+}
+
+export async function deleteLesson(id: number): Promise<boolean> {
+  const query = 'DELETE FROM lessons WHERE id = $1';
+  const result = await pool.query(query, [id]);
+  return (result.rowCount || 0) > 0;
+}

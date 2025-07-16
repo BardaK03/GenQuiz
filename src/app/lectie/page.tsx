@@ -173,6 +173,15 @@ export default function LectiePage() {
             {loading ? "Generez schița..." : "Generează Schița de Lecție cu AI"}
           </button>
 
+          <div className="mt-4 flex justify-center">
+            <a
+              href="/saved-lessons"
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+            >
+              📚 Vezi Lecțiile Salvate
+            </a>
+          </div>
+
           {error && (
             <div className="mt-4 p-4 bg-red-100 border border-red-400 rounded-lg">
               <p className="text-red-800">{error}</p>
