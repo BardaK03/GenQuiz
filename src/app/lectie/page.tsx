@@ -61,22 +61,55 @@ export default function LectiePage() {
 
   const formatLesson = (lessonText: string) => {
     // Split by lines and format headers and content
-    const lines = lessonText.split('\n');
+    const lines = lessonText.split("\n");
     const formattedLines = lines.map((line, index) => {
-      if (line.startsWith('# ')) {
-        return <h1 key={index} className="text-3xl font-bold text-gray-800 mb-4 mt-6">{line.replace('# ', '')}</h1>;
-      } else if (line.startsWith('## ')) {
-        return <h2 key={index} className="text-2xl font-semibold text-gray-800 mb-3 mt-5">{line.replace('## ', '')}</h2>;
-      } else if (line.startsWith('### ')) {
-        return <h3 key={index} className="text-xl font-medium text-gray-800 mb-2 mt-4">{line.replace('### ', '')}</h3>;
-      } else if (line.startsWith('**') && line.endsWith('**')) {
-        return <p key={index} className="font-semibold text-gray-800 mb-2">{line.replace(/\*\*/g, '')}</p>;
-      } else if (line.startsWith('- ')) {
-        return <li key={index} className="text-gray-700 mb-1 ml-4">{line.replace('- ', '')}</li>;
-      } else if (line.trim() === '') {
+      if (line.startsWith("# ")) {
+        return (
+          <h1
+            key={index}
+            className="text-3xl font-bold text-gray-800 mb-4 mt-6"
+          >
+            {line.replace("# ", "")}
+          </h1>
+        );
+      } else if (line.startsWith("## ")) {
+        return (
+          <h2
+            key={index}
+            className="text-2xl font-semibold text-gray-800 mb-3 mt-5"
+          >
+            {line.replace("## ", "")}
+          </h2>
+        );
+      } else if (line.startsWith("### ")) {
+        return (
+          <h3
+            key={index}
+            className="text-xl font-medium text-gray-800 mb-2 mt-4"
+          >
+            {line.replace("### ", "")}
+          </h3>
+        );
+      } else if (line.startsWith("**") && line.endsWith("**")) {
+        return (
+          <p key={index} className="font-semibold text-gray-800 mb-2">
+            {line.replace(/\*\*/g, "")}
+          </p>
+        );
+      } else if (line.startsWith("- ")) {
+        return (
+          <li key={index} className="text-gray-700 mb-1 ml-4">
+            {line.replace("- ", "")}
+          </li>
+        );
+      } else if (line.trim() === "") {
         return <br key={index} />;
       } else {
-        return <p key={index} className="text-gray-700 mb-2 leading-relaxed">{line}</p>;
+        return (
+          <p key={index} className="text-gray-700 mb-2 leading-relaxed">
+            {line}
+          </p>
+        );
       }
     });
     return formattedLines;
@@ -85,9 +118,12 @@ export default function LectiePage() {
   return (
     <div className="p-8 pb-20 gap-16 sm:p-20 flex flex-col items-center justify-center min-h-screen">
       <div className="flex flex-col gap-[32px] items-center text-center max-w-4xl w-full">
-        <h1 className="text-4xl font-bold text-gray-800">Generare Schiță de Lecție</h1>
+        <h1 className="text-4xl font-bold text-gray-800">
+          Generare Schiță de Lecție
+        </h1>
         <p className="text-xl text-gray-700">
-          Selectează un subiect pentru a genera o schiță detaliată de lecție pentru biologia clasa a 11-a.
+          Selectează un subiect pentru a genera o schiță detaliată de lecție
+          pentru biologia clasa a 11-a.
         </p>
 
         <div className="w-full p-6 bg-white rounded-lg shadow-sm border border-gray-100">
@@ -157,9 +193,10 @@ export default function LectiePage() {
             📚 Schiță de Lecție Generată de AI
           </h3>
           <p className="text-sm text-green-700">
-            Această schiță va fi generată automat de inteligența artificială, 
-            adaptată pentru programa de biologie clasa a 11-a din România. 
-            Schița va include obiective, structură detaliată, conținut științific și activități.
+            Această schiță va fi generată automat de inteligența artificială,
+            adaptată pentru programa de biologie clasa a 11-a din România.
+            Schița va include obiective, structură detaliată, conținut
+            științific și activități.
           </p>
         </div>
       </div>

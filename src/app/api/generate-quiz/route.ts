@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { OLLAMA_CONFIG } from "@/lib/ollama";
+import { saveQuiz } from "@/lib/db-helpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -208,10 +209,14 @@ Return only the JSON array, no other text or formatting.`;
       }
     }
 
+    // Save to database
+    const savedQuiz = await saveQuiz(subject, type, questions.slice(0, numberOfQuestions));
+
     return NextResponse.json({
       success: true,
       questions: questions.slice(0, numberOfQuestions),
       type: type,
+      quizId: savedQuiz.id,
     });
   } catch (error) {
     console.error("Error generating quiz:", error);

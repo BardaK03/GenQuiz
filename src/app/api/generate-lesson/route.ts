@@ -1,75 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { OLLAMA_CONFIG } from "@/lib/ollama";
+import { saveLesson } from "@/lib/db-helpers";
 
 export async function POST(request: NextRequest) {
   try {
     const { subject } = await request.json();
 
-    const prompt = `Generează o schiță detaliată de lecție pentru biologia clasa a 11-a în România, pentru subiectul "${subject}".
+    const prompt = `Comporta te ca si un profesor cu experienta de zeci de ani in predarea biologiei,generă-mi in limba romana,cu un limbaj corect gramatical, o schiță detaliată de lecție(50 de minute durata ) pentru subiectul ${subject}
 
 IMPORTANT: Returnează doar conținutul schiței de lecție, fără formatare JSON sau alte elemente.
 
 Schița trebuie să includă:
 
-1. **TITLUL LECȚIEI**: ${subject}
 
-2. **OBIECTIVELE LECȚIEI**:
-   - Obiective cognitive (ce vor știi elevii)
-   - Obiective procedurale (ce vor ști să facă elevii)
-   - Obiective atitudinale (ce atitudini vor dezvolta elevii)
+●	Context și audiență: Lecția este destinată elevilor/studenților de nivel liceal cu cunoștințe anterioare minime în domeniu
+●	Obiective de învățare: Specifică 3–5 obiective clare și măsurabile la începutul lecției.
+●	Structură pe secțiuni:
+●	Introducere 
+●	Prezentare teoretică (puncte cheie, explicații)
+●	Activitate practică (exercițiu, problemă de rezolvat)
+●	Evaluare formativă (întrebări, discuție)
+●	Concluzii + temă/următorii pași (nu folosi analogii)
+●	Durată estimată: Include timp recomandat pentru fiecare secțiune.
+●	Resurse și materiale:foloseste ce se gaseste de obicei in cadrul unei scoli ,sau acasa(fara linkuri)
+●	Ton și stil: Clar, concis, orientat spre pedagogie activă. foloseste schitele din memoria ta pentru a vedea cum trebuie sa arate o astfel de schita,schita generata de tine nu trebuie sa fie lunga,si trebuie sa contina doar ce ti am cerut
 
-3. **RESURSE NECESARE**:
-   - Materiale didactice
-   - Echipamente de laborator (dacă este cazul)
-   - Resurse digitale
-
-4. **STRUCTURA LECȚIEI**:
-
-   **A. MOMENT ORGANIZATORIC** (2-3 minute)
-   - Verificarea prezenței
-   - Pregătirea materialelor
-
-   **B. MOMENT DE VERIFICARE** (8-10 minute)
-   - Verificarea cunoștințelor anterioare
-   - Întrebări de legătură cu lecția precedentă
-
-   **C. MOMENT DE ANUNȚARE** (2-3 minute)
-   - Anunțarea temei și obiectivelor lecției
-   - Motivarea elevilor
-
-   **D. MOMENT DE REALIZARE** (25-30 minute)
-   - Prezentarea conținutului nou
-   - Concepte cheie și definiții
-   - Exemple și aplicații practice
-   - Activități interactive
-
-   **E. MOMENT DE FIXARE** (5-7 minute)
-   - Recapitularea punctelor esențiale
-   - Întrebări de verificare
-   - Exerciții rapide
-
-   **F. MOMENT DE EVALUARE** (3-5 minute)
-   - Evaluarea cunoștințelor dobândite
-   - Feedback pentru elevi
-
-5. **CONȚINUTUL ȘTIINȚIFIC DETALIAT**:
-   - Toate conceptele importante
-   - Definiții precise
-   - Procese biologice explicat pas cu pas
-   - Exemple concrete din natură
-
-6. **ACTIVITĂȚI PROPUSE**:
-   - Activități pentru different niveluri de dificultate
-   - Experimente sau demonstrații practice
-   - Exerciții de grup
 
 Cerințe:
-- Schița trebuie să fie detaliată și practică
 - Să respecte programa școlară română pentru clasa a 11-a
 - Să includă termeni științifici corecți în română
 - Să fie adaptată pentru o lecție de 50 de minute
 - Să includă activități interactive și moderne
 - Să fie structurată clar și ușor de urmărit pentru profesor
+-respecta urmatorul format:
+# Titlu lecției: ${subject}
+Obiectivele lecției:
+1. Obiectiv 1
+2. Obiectiv 2
+3. Obiectiv 3
+Introducere:
+Prezentare teoretică:
+Activitate practică:
+Evaluare formativă:
+Concluzii + temă/următorii pași:
+Resurse și materiale folosite:
+
+De asemenea, raspunsul dat NU trebuie sa fie formatat sub niciun fel, trebuie sa fie doar text simplu, fara formatare Bold, Italic, Underline, dimensiune, culoare sau orice alt tip de formatare a textului.
 
 Returnează doar conținutul schiței, formatat frumos cu titluri clare și structură logică.`;
 
@@ -107,18 +83,29 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
       .replace(/<think>[\s\S]*$/g, "") // Remove incomplete thinking blocks
       .trim();
 
+    // Save to database
+    const savedLesson = await saveLesson(subject, responseText);
+
     return NextResponse.json({
       success: true,
       lesson: responseText,
       subject: subject,
+      lessonId: savedLesson.id,
     });
   } catch (error) {
     console.error("Error generating lesson:", error);
 
-    // Return fallback lesson if API fails
-    const fallbackLesson = `# SCHIȚĂ DE LECȚIE - ${request
-      .json()
-      .then((data) => data.subject)}
+    // Try to get subject from request for fallback
+    let subject = "Subiect necunoscut";
+    try {
+      const { subject: requestSubject } = await request.json();
+      subject = requestSubject || "Subiect necunoscut";
+    } catch (parseError) {
+      console.error("Error parsing request for fallback:", parseError);
+    }
+
+    // Return fallback lesson
+    const fallbackLesson = `# SCHIȚĂ DE LECȚIE - ${subject}
 
 ## OBIECTIVELE LECȚIEI
 - Să înțeleagă conceptele de bază
@@ -150,11 +137,26 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
 
 Notă: Această schiță a fost generată automat. Pentru o schiță detaliată, vă rugăm să reîncercați.`;
 
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-      lesson: fallbackLesson,
-      subject: "Subiect necunoscut",
-    });
+    // Try to save fallback lesson to database
+    try {
+      const savedLesson = await saveLesson(subject, fallbackLesson);
+      
+      return NextResponse.json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        lesson: fallbackLesson,
+        subject: subject,
+        lessonId: savedLesson.id,
+      });
+    } catch (dbError) {
+      console.error("Error saving fallback lesson:", dbError);
+      
+      return NextResponse.json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        lesson: fallbackLesson,
+        subject: subject,
+      });
+    }
   }
 }
