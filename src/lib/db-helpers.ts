@@ -95,3 +95,22 @@ export async function deleteLesson(id: number): Promise<boolean> {
   const result = await pool.query(query, [id]);
   return (result.rowCount || 0) > 0;
 }
+
+// Quiz management functions
+export async function updateQuiz(id: number, subject: string, type: string, questions: any[]): Promise<Quiz | null> {
+  const query = `
+    UPDATE quizzes 
+    SET subject = $1, type = $2, questions = $3, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $4
+    RETURNING *
+  `;
+  
+  const result = await pool.query(query, [subject, type, JSON.stringify(questions), id]);
+  return result.rows[0] || null;
+}
+
+export async function deleteQuiz(id: number): Promise<boolean> {
+  const query = 'DELETE FROM quizzes WHERE id = $1';
+  const result = await pool.query(query, [id]);
+  return (result.rowCount || 0) > 0;
+}

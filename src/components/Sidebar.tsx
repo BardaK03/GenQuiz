@@ -10,6 +10,7 @@ export default function Sidebar() {
     { name: "Lecție", path: "/lectie" },
     { name: "Test", path: "/test" },
     { name: "Lecții Salvate", path: "/saved-lessons" },
+    { name: "Quiz-uri Salvate", path: "/saved-quizzes" },
     { name: "Resurse SmartLab", path: "/resurse" },
   ];
 
