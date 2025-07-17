@@ -7,12 +7,15 @@ import {
   updateRagDocument,
   deleteRagDocument,
   toggleRagDocumentStatus,
+  saveDocumentChunks,
+  deleteDocumentChunks,
 } from "@/lib/db-helpers";
+import { DocumentProcessor } from "@/lib/document-processor";
 
 // GET - Get all RAG documents (admin only)
 export async function GET(request: NextRequest) {
   const admin = verifyAdminFromRequest(request);
-  
+
   if (!admin) {
     return NextResponse.json(
       { success: false, error: "Unauthorized. Admin access required." },
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (documentId) {
       // Get specific document
       const document = await getRagDocumentById(parseInt(documentId));
-      
+
       if (!document) {
         return NextResponse.json(
           { success: false, error: "Document not found" },
@@ -42,7 +45,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Get all documents
       const documents = await getRagDocuments();
-      
+
       return NextResponse.json({
         success: true,
         documents,
@@ -60,7 +63,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new RAG document (admin only)
 export async function POST(request: NextRequest) {
   const admin = verifyAdminFromRequest(request);
-  
+
   if (!admin) {
     return NextResponse.json(
       { success: false, error: "Unauthorized. Admin access required." },
@@ -70,7 +73,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const requestBody = await request.json();
-    const { title, content, category, fileName, fileType, fileSize } = requestBody;
+    const { title, content, category, fileName, fileType, fileSize } =
+      requestBody;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -90,6 +94,41 @@ export async function POST(request: NextRequest) {
     );
 
     if (result.success) {
+      // Procesează documentul pentru chunking și embeddings
+      try {
+        if (result.documentId) {
+          console.log(
+            `Processing document ${result.documentId} for embeddings...`
+          );
+
+          // Procesează documentul în chunks cu embeddings
+          const chunks = await DocumentProcessor.processDocument(
+            result.documentId,
+            content,
+            {
+              title,
+              category,
+              fileType,
+              fileName,
+            }
+          );
+
+          // Salvează chunks-urile în baza de date
+          await saveDocumentChunks(chunks);
+
+          console.log(
+            `Successfully processed ${chunks.length} chunks for document ${result.documentId}`
+          );
+        }
+      } catch (embeddingError) {
+        console.error(
+          "Error processing document for embeddings:",
+          embeddingError
+        );
+        // Documentul este salvat, dar embedding-ul a eșuat
+        // Nu returnăm eroare pentru că documentul principal există
+      }
+
       return NextResponse.json({
         success: true,
         message: "Document saved successfully",
@@ -113,7 +152,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update RAG document (admin only)
 export async function PUT(request: NextRequest) {
   const admin = verifyAdminFromRequest(request);
-  
+
   if (!admin) {
     return NextResponse.json(
       { success: false, error: "Unauthorized. Admin access required." },
@@ -140,6 +179,34 @@ export async function PUT(request: NextRequest) {
     );
 
     if (result.success) {
+      // Regenerează embeddings-urile pentru conținutul actualizat
+      try {
+        console.log(`Regenerating embeddings for document ${id}...`);
+
+        // Șterge chunks-urile vechi
+        await deleteDocumentChunks(parseInt(id));
+
+        // Regenerează chunks-urile și embeddings-urile
+        const chunks = await DocumentProcessor.processDocument(
+          parseInt(id),
+          content,
+          {
+            title,
+            category,
+          }
+        );
+
+        // Salvează chunks-urile noi
+        await saveDocumentChunks(chunks);
+
+        console.log(
+          `Successfully regenerated ${chunks.length} chunks for document ${id}`
+        );
+      } catch (embeddingError) {
+        console.error("Error regenerating embeddings:", embeddingError);
+        // Continuă chiar dacă regenerarea embeddings-urilor a eșuat
+      }
+
       return NextResponse.json({
         success: true,
         message: "Document updated successfully",
@@ -162,7 +229,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete RAG document (admin only)
 export async function DELETE(request: NextRequest) {
   const admin = verifyAdminFromRequest(request);
-  
+
   if (!admin) {
     return NextResponse.json(
       { success: false, error: "Unauthorized. Admin access required." },
@@ -184,6 +251,15 @@ export async function DELETE(request: NextRequest) {
     const result = await deleteRagDocument(parseInt(documentId));
 
     if (result.success) {
+      // Șterge și chunks-urile asociate
+      try {
+        await deleteDocumentChunks(parseInt(documentId));
+        console.log(`Deleted chunks for document ${documentId}`);
+      } catch (chunkError) {
+        console.error("Error deleting document chunks:", chunkError);
+        // Continuă chiar dacă ștergerea chunks-urilor a eșuat
+      }
+
       return NextResponse.json({
         success: true,
         message: "Document deleted successfully",
@@ -206,7 +282,7 @@ export async function DELETE(request: NextRequest) {
 // PATCH - Toggle document status (admin only)
 export async function PATCH(request: NextRequest) {
   const admin = verifyAdminFromRequest(request);
-  
+
   if (!admin) {
     return NextResponse.json(
       { success: false, error: "Unauthorized. Admin access required." },

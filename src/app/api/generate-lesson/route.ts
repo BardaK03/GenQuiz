@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { OLLAMA_CONFIG } from "@/lib/ollama";
 import { saveLesson } from "@/lib/db-helpers";
 import { verifyTokenFromRequest } from "@/lib/auth";
+import { DocumentProcessor } from "@/lib/document-processor";
 
 export async function POST(request: NextRequest) {
   // Verify authentication first
@@ -11,26 +12,77 @@ export async function POST(request: NextRequest) {
   }
 
   const userId = decoded.userId;
-  
+
   // Parse request body once at the beginning
   let requestBody;
   try {
     requestBody = await request.json();
   } catch (error) {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
   }
 
   const { subject, technologies } = requestBody;
-  
+
   try {
+    // Obține context RAG relevant pentru subiect
+    let ragContext = "";
+    let ragDocuments: any[] = [];
+
+    try {
+      console.log(`🔍 Searching for RAG context for subject: ${subject}`);
+
+      // Caută chunks-uri similare cu subiectul
+      const similarChunks = await DocumentProcessor.searchSimilarChunks(
+        `${subject} ${technologies ? technologies.join(" ") : ""}`,
+        5, // max 5 chunks
+        0.6 // similarity threshold
+      );
+
+      console.log(`📚 Found ${similarChunks.length} similar chunks`);
+
+      if (similarChunks.length > 0) {
+        ragContext = `\n\nCONTEXT DOCUMENTAȚIE SMARTLAB:\n`;
+        ragContext += similarChunks
+          .map((chunk, index) => {
+            console.log(
+              `📖 Chunk ${index + 1} from "${
+                chunk.document_title
+              }" (similarity: ${chunk.similarity.toFixed(3)})`
+            );
+            return `--- Document: ${chunk.document_title} (${chunk.document_category}) ---\n${chunk.chunk_text}`;
+          })
+          .join("\n\n");
+
+        ragContext += `\n\nIMPORTANT: Folosește informațiile din documentația SmartLab de mai sus pentru a crea activități practice specifice și detaliate.`;
+
+        ragDocuments = similarChunks.map((chunk) => ({
+          title: chunk.document_title,
+          category: chunk.document_category,
+          similarity: chunk.similarity,
+        }));
+
+        console.log(`✅ RAG context prepared: ${ragContext.length} characters`);
+      } else {
+        console.log(`⚠️ No similar chunks found for query: ${subject}`);
+      }
+    } catch (ragError) {
+      console.error("❌ RAG search error:", ragError);
+      ragContext = "";
+    }
 
     // Construim partea despre tehnologii dacă există
-    const techSection = technologies && technologies.length > 0 
-      ? `\n\nIMPORTANT: Pentru activitatea practică, utilizează următoarele tehnologii disponibile în SmartLab: ${technologies.join(", ")}. 
+    const techSection =
+      technologies && technologies.length > 0
+        ? `\n\nIMPORTANT: Pentru activitatea practică, utilizează următoarele tehnologii disponibile în SmartLab: ${technologies.join(
+            ", "
+          )}. 
       Creează o activitate practică specifică și detaliată folosind aceste tehnologii, cu pași clari pe care profesorul poate să-i urmeze cu elevii.`
-      : "";
+        : "";
 
-    const prompt = `Comporta te ca si un profesor cu experienta de zeci de ani in predarea biologiei,generă-mi in limba romana,cu un limbaj corect gramatical, o schiță detaliată de lecție(50 de minute durata ) pentru subiectul ${subject}${techSection}
+    const prompt = `Comporta te ca si un profesor cu experienta de zeci de ani in predarea biologiei,generă-mi in limba romana,cu un limbaj corect gramatical, o schiță detaliată de lecție(50 de minute durata ) pentru subiectul ${subject}${techSection}${ragContext}
 
 IMPORTANT: Returnează doar conținutul schiței de lecție, fără formatare JSON sau alte elemente.
 
@@ -42,11 +94,19 @@ Schița trebuie să includă:
 ●	Structură pe secțiuni:
 ●	Introducere 
 ●	Prezentare teoretică (puncte cheie, explicații)
-●	Activitate practică (exercițiu, problemă de rezolvat)${technologies && technologies.length > 0 ? " - foloseste tehnologiile mentionate mai sus" : ""}
+●	Activitate practică (exercițiu, problemă de rezolvat)${
+      technologies && technologies.length > 0
+        ? " - foloseste tehnologiile mentionate mai sus"
+        : ""
+    }
 ●	Evaluare formativă (întrebări, discuție)
 ●	Concluzii + temă/următorii pași (nu folosi analogii)
 ●	Durată estimată: Include timp recomandat pentru fiecare secțiune.
-●	Resurse și materiale:foloseste ce se gaseste de obicei in cadrul unei scoli ,sau acasa(fara linkuri)${technologies && technologies.length > 0 ? " si tehnologiile SmartLab mentionate" : ""}
+●	Resurse și materiale:foloseste ce se gaseste de obicei in cadrul unei scoli ,sau acasa(fara linkuri)${
+      technologies && technologies.length > 0
+        ? " si tehnologiile SmartLab mentionate"
+        : ""
+    }
 ●	Ton și stil: Clar, concis, orientat spre pedagogie activă. foloseste schitele din memoria ta pentru a vedea cum trebuie sa arate o astfel de schita,schita generata de tine nu trebuie sa fie lunga,si trebuie sa contina doar ce ti am cerut
 
 
@@ -115,14 +175,23 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
       lesson: responseText,
       subject: subject,
       lessonId: savedLesson.id,
+      // Adaug informații RAG
+      rag_info: {
+        documents_used: ragDocuments.length,
+        documents: ragDocuments,
+        context_length: ragContext.length,
+      },
     });
   } catch (error) {
     console.error("Error generating lesson:", error);
 
     // Use variables from request body for fallback
-    const techSection = technologies && technologies.length > 0 
-      ? `\n\n## TEHNOLOGII SMARTLAB DISPONIBILE\n${technologies.join(", ")}\n\n## ACTIVITATE PRACTICĂ CU TEHNOLOGII\n- Utilizează tehnologiile disponibile pentru activități interactive\n- Creează exerciții practice adaptate tehnologiilor selectate`
-      : "";
+    const techSection =
+      technologies && technologies.length > 0
+        ? `\n\n## TEHNOLOGII SMARTLAB DISPONIBILE\n${technologies.join(
+            ", "
+          )}\n\n## ACTIVITATE PRACTICĂ CU TEHNOLOGII\n- Utilizează tehnologiile disponibile pentru activități interactive\n- Creează exerciții practice adaptate tehnologiilor selectate`
+        : "";
 
     // Return fallback lesson
     const fallbackLesson = `# SCHIȚĂ DE LECȚIE - ${subject}
@@ -160,7 +229,7 @@ Notă: Această schiță a fost generată automat. Pentru o schiță detaliată,
     // Try to save fallback lesson to database
     try {
       const savedLesson = await saveLesson(subject, fallbackLesson, userId);
-      
+
       return NextResponse.json({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -170,7 +239,7 @@ Notă: Această schiță a fost generată automat. Pentru o schiță detaliată,
       });
     } catch (dbError) {
       console.error("Error saving fallback lesson:", dbError);
-      
+
       return NextResponse.json({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",

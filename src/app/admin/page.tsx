@@ -18,6 +18,7 @@ interface RagDocument {
   updated_at: string;
   first_name: string;
   last_name: string;
+  chunks_count?: number;
 }
 
 export default function AdminPanel() {
@@ -25,10 +26,15 @@ export default function AdminPanel() {
   const router = useRouter();
   const [documents, setDocuments] = useState<RagDocument[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
-  const [activeTab, setActiveTab] = useState<"documents" | "upload">(
+  const [activeTab, setActiveTab] = useState<"documents" | "upload" | "debug">(
     "documents"
   );
   const [editingDoc, setEditingDoc] = useState<RagDocument | null>(null);
+
+  // Debug RAG states
+  const [debugQuery, setDebugQuery] = useState("");
+  const [debugResults, setDebugResults] = useState<any[]>([]);
+  const [debugLoading, setDebugLoading] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -190,6 +196,39 @@ export default function AdminPanel() {
     }
   };
 
+  const handleDebugRag = async () => {
+    if (!debugQuery.trim()) return;
+
+    setDebugLoading(true);
+    try {
+      const response = await fetch("/api/debug/rag-search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: debugQuery,
+          threshold: 0.6,
+          maxResults: 10,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDebugResults(data.chunks || []);
+        console.log("RAG Debug Results:", data);
+      } else {
+        console.error("Debug failed:", response.statusText);
+        alert("Eroare la debugging RAG");
+      }
+    } catch (error) {
+      console.error("Debug error:", error);
+      alert("Eroare la debugging RAG");
+    } finally {
+      setDebugLoading(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -275,6 +314,16 @@ export default function AdminPanel() {
               >
                 ⬆️ {editingDoc ? "Editare Document" : "Încărcare Document"}
               </button>
+              <button
+                onClick={() => setActiveTab("debug")}
+                className={`py-2 px-4 font-medium text-sm border-b-2 ${
+                  activeTab === "debug"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-black hover:text-gray-700"
+                }`}
+              >
+                🔍 Debug RAG
+              </button>
             </div>
           </div>
 
@@ -295,6 +344,9 @@ export default function AdminPanel() {
                           </th>
                           <th className="px-4 py-2 text-left text-black">
                             Categorie
+                          </th>
+                          <th className="px-4 py-2 text-left text-black">
+                            Chunks
                           </th>
                           <th className="px-4 py-2 text-left text-black">
                             Status
@@ -326,6 +378,11 @@ export default function AdminPanel() {
                             <td className="px-4 py-2">
                               <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
                                 {doc.category || "Niciuna"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2">
+                              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
+                                {doc.chunks_count || 0} chunks
                               </span>
                             </td>
                             <td className="px-4 py-2">
@@ -431,6 +488,10 @@ export default function AdminPanel() {
                     <p className="text-sm text-black mt-1">
                       Acceptă fișiere: .md, .txt, .json
                     </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      💡 Documentele vor fi procesate automat pentru chunking și
+                      vectorizare RAG
+                    </p>
                   </div>
 
                   <div>
@@ -481,6 +542,88 @@ export default function AdminPanel() {
                     )}
                   </div>
                 </form>
+              </div>
+            )}
+
+            {activeTab === "debug" && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-black mb-4">
+                    🔍 Test Căutare RAG
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-2">
+                        Întrebare/Query de test:
+                      </label>
+                      <input
+                        type="text"
+                        value={debugQuery}
+                        onChange={(e) => setDebugQuery(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                        placeholder="Ex: cum functioneaza robotul fable?"
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleDebugRag}
+                      disabled={debugLoading || !debugQuery.trim()}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {debugLoading ? "Căutare..." : "Caută în RAG"}
+                    </button>
+                  </div>
+                </div>
+
+                {debugResults.length > 0 && (
+                  <div>
+                    <h4 className="text-md font-medium text-black mb-4">
+                      Rezultate găsite ({debugResults.length}):
+                    </h4>
+                    <div className="space-y-4">
+                      {debugResults.map((chunk, index) => (
+                        <div
+                          key={chunk.id}
+                          className="bg-gray-50 p-4 rounded-lg border"
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <h5 className="font-medium text-black">
+                              {chunk.document_title}
+                            </h5>
+                            <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                              {(chunk.similarity * 100).toFixed(1)}% similar
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Categorie: {chunk.document_category}
+                          </p>
+                          <div className="text-sm text-black">
+                            <details>
+                              <summary className="cursor-pointer hover:text-blue-600">
+                                {chunk.chunk_text.substring(0, 100)}...
+                              </summary>
+                              <div className="mt-2 p-2 bg-white rounded border">
+                                <pre className="whitespace-pre-wrap text-xs">
+                                  {chunk.full_text}
+                                </pre>
+                              </div>
+                            </details>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {debugResults.length === 0 && debugQuery && !debugLoading && (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800">
+                      Nu s-au găsit rezultate pentru "{debugQuery}". Încearcă să
+                      reduci pragul de similaritate sau să reformulezi
+                      întrebarea.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

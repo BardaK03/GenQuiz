@@ -428,3 +428,107 @@ export async function toggleRagDocumentStatus(
     };
   }
 }
+
+// Document Chunks interface
+export interface DocumentChunk {
+  id?: number;
+  document_id: number;
+  chunk_index: number;
+  chunk_text: string;
+  chunk_size: number;
+  embedding?: number[];
+  metadata?: any;
+  created_at?: Date;
+}
+
+// Save document chunks with embeddings
+export async function saveDocumentChunks(
+  chunks: DocumentChunk[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const query = `
+      INSERT INTO document_chunks (document_id, chunk_index, chunk_text, chunk_size, embedding, metadata)
+      VALUES ($1, $2, $3, $4, $5::real[], $6)
+    `;
+
+    for (const chunk of chunks) {
+      await pool.query(query, [
+        chunk.document_id,
+        chunk.chunk_index,
+        chunk.chunk_text,
+        chunk.chunk_size,
+        chunk.embedding || null,
+        chunk.metadata ? JSON.stringify(chunk.metadata) : null,
+      ]);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error saving document chunks:", error);
+    return {
+      success: false,
+      error: "Failed to save document chunks",
+    };
+  }
+}
+
+// Get chunks for a document
+export async function getDocumentChunks(
+  documentId: number
+): Promise<DocumentChunk[]> {
+  try {
+    const query = `
+      SELECT * FROM document_chunks 
+      WHERE document_id = $1 
+      ORDER BY chunk_index
+    `;
+
+    const result = await pool.query(query, [documentId]);
+    return result.rows;
+  } catch (error) {
+    console.error("Error getting document chunks:", error);
+    return [];
+  }
+}
+
+// Delete chunks for a document
+export async function deleteDocumentChunks(
+  documentId: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const query = "DELETE FROM document_chunks WHERE document_id = $1";
+    await pool.query(query, [documentId]);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting document chunks:", error);
+    return {
+      success: false,
+      error: "Failed to delete document chunks",
+    };
+  }
+}
+
+// Search similar chunks
+export async function searchSimilarChunks(
+  queryEmbedding: number[],
+  maxResults: number = 10,
+  similarityThreshold: number = 0.7
+): Promise<any[]> {
+  try {
+    const query = `
+      SELECT * FROM search_similar_chunks($1::vector, $2, $3)
+    `;
+
+    const result = await pool.query(query, [
+      JSON.stringify(queryEmbedding),
+      similarityThreshold,
+      maxResults,
+    ]);
+
+    return result.rows;
+  } catch (error) {
+    console.error("Error searching similar chunks:", error);
+    return [];
+  }
+}

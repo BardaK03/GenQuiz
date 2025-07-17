@@ -29,6 +29,7 @@ export default function ResursePage() {
   const [lesson, setLesson] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ragInfo, setRagInfo] = useState<any>(null);
 
   const handleTechnologyChange = (techId: string) => {
     setSelectedTechnologies((prev) =>
@@ -55,6 +56,7 @@ export default function ResursePage() {
       setLoading(true);
       setError(null);
       setLesson(null);
+      setRagInfo(null);
 
       const selectedTechNames = selectedTechnologies
         .map(
@@ -78,6 +80,9 @@ export default function ResursePage() {
 
       if (data.success) {
         setLesson(data.lesson);
+        if (data.rag_info) {
+          setRagInfo(data.rag_info);
+        }
       } else {
         setError(data.error || "Eroare la generarea lecției");
       }
@@ -238,6 +243,7 @@ export default function ResursePage() {
                     setSubject("");
                     setSelectedTechnologies([]);
                     setError(null);
+                    setRagInfo(null);
                   }}
                   className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
                 >
@@ -245,6 +251,33 @@ export default function ResursePage() {
                 </button>
               </div>
             </div>
+
+            {ragInfo && (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">
+                  📚 Documente RAG folosite:
+                </h4>
+                <div className="space-y-2">
+                  <p className="text-sm text-blue-800">
+                    {ragInfo.documents_used} documente găsite,
+                    {ragInfo.context_length} caractere de context
+                  </p>
+                  {ragInfo.documents.map((doc: any, index: number) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center"
+                    >
+                      <span className="text-sm text-blue-700">
+                        {doc.title} ({doc.category})
+                      </span>
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        {(doc.similarity * 100).toFixed(1)}% relevant
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="prose max-w-none">
               <div className="bg-gray-50 p-6 rounded-lg">
