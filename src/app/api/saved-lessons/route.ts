@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllLessons, getLessonsBySubject, updateLesson, deleteLesson } from "@/lib/db-helpers";
+import { getAllLessons, getLessonsBySubject, updateLesson, deleteLesson, getLessonsByUserId, getLessonsBySubjectAndUserId } from "@/lib/db-helpers";
+import { verifyTokenFromRequest } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
+    // Verify authentication
+    const decoded = verifyTokenFromRequest(request);
+    if (!decoded) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const subject = searchParams.get('subject');
     
     const lessons = subject 
-      ? await getLessonsBySubject(subject)
-      : await getAllLessons();
+      ? await getLessonsBySubjectAndUserId(subject, decoded.userId)
+      : await getLessonsByUserId(decoded.userId);
 
     return NextResponse.json({
       success: true,
@@ -25,6 +32,12 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Verify authentication
+    const decoded = verifyTokenFromRequest(request);
+    if (!decoded) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id, subject, content } = await request.json();
     
     if (!id || !subject || !content) {
@@ -34,7 +47,7 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    const updatedLesson = await updateLesson(id, subject, content);
+    const updatedLesson = await updateLesson(id, subject, content, decoded.userId);
     
     if (!updatedLesson) {
       return NextResponse.json(
@@ -58,6 +71,12 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Verify authentication
+    const decoded = verifyTokenFromRequest(request);
+    if (!decoded) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
@@ -68,7 +87,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    const deleted = await deleteLesson(parseInt(id));
+    const deleted = await deleteLesson(parseInt(id), decoded.userId);
     
     if (!deleted) {
       return NextResponse.json(

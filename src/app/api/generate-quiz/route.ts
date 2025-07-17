@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { OLLAMA_CONFIG } from "@/lib/ollama";
 import { saveQuiz } from "@/lib/db-helpers";
+import { verifyTokenFromRequest } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
+  // Verify authentication first
+  const decoded = verifyTokenFromRequest(request);
+  if (!decoded) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = decoded.userId;
+  
+  // Parse request body once at the beginning
+  let requestBody;
   try {
-    const { numberOfQuestions, subject, type } = await request.json();
+    requestBody = await request.json();
+  } catch (error) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const { numberOfQuestions, subject, type } = requestBody;
+  
+  try {
 
     // Construct different prompts based on question type
     let prompt;
@@ -210,7 +228,7 @@ Return only the JSON array, no other text or formatting.`;
     }
 
     // Save to database
-    const savedQuiz = await saveQuiz(subject, type, questions.slice(0, numberOfQuestions));
+    const savedQuiz = await saveQuiz(subject, type, questions.slice(0, numberOfQuestions), userId);
 
     return NextResponse.json({
       success: true,
@@ -221,42 +239,31 @@ Return only the JSON array, no other text or formatting.`;
   } catch (error) {
     console.error("Error generating quiz:", error);
 
-    // Return fallback questions if API fails
-    try {
-      const { numberOfQuestions, subject, type } = await request.json();
-      
-      let fallbackQuestions;
-      if (type === "short-answer") {
-        fallbackQuestions = Array.from({ length: numberOfQuestions }, (_, i) => ({
-          question: `Sample definition question ${i + 1} about ${subject}`,
-          answer: `Sample answer ${i + 1} for ${subject}`,
-        }));
-      } else {
-        fallbackQuestions = Array.from({ length: numberOfQuestions }, (_, i) => ({
-          question: `Sample question ${i + 1} about ${subject}`,
-          options: [
-            `Option A for question ${i + 1}`,
-            `Option B for question ${i + 1}`,
-            `Option C for question ${i + 1}`,
-            `Option D for question ${i + 1}`,
-          ],
-          correctAnswer: Math.floor(Math.random() * 4),
-        }));
-      }
-
-      return NextResponse.json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        questions: fallbackQuestions,
-        type: type,
-      });
-    } catch (fallbackError) {
-      return NextResponse.json({
-        success: false,
-        error: "Failed to generate fallback questions",
-        questions: [],
-        type: "multiple-choice",
-      });
+    // Return fallback questions if API fails (without saving to database)
+    let fallbackQuestions;
+    if (type === "short-answer") {
+      fallbackQuestions = Array.from({ length: numberOfQuestions }, (_, i) => ({
+        question: `Sample definition question ${i + 1} about ${subject}`,
+        answer: `Sample answer ${i + 1} for ${subject}`,
+      }));
+    } else {
+      fallbackQuestions = Array.from({ length: numberOfQuestions }, (_, i) => ({
+        question: `Sample question ${i + 1} about ${subject}`,
+        options: [
+          `Option A for question ${i + 1}`,
+          `Option B for question ${i + 1}`,
+          `Option C for question ${i + 1}`,
+          `Option D for question ${i + 1}`,
+        ],
+        correctAnswer: Math.floor(Math.random() * 4),
+      }));
     }
+
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      questions: fallbackQuestions,
+      type: type,
+    });
   }
 }

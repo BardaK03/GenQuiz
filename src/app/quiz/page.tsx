@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface Question {
@@ -16,6 +16,7 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quizTitle, setQuizTitle] = useState<string>("");
+  const hasGeneratedRef = useRef(false);
 
   const numberOfQuestions = searchParams.get("questions");
   const subject = searchParams.get("subject") || "general knowledge";
@@ -24,9 +25,13 @@ export default function QuizPage() {
   const savedQuizId = searchParams.get("id");
 
   useEffect(() => {
+    if (hasGeneratedRef.current) return;
+    
     if (isSaved && savedQuizId) {
+      hasGeneratedRef.current = true;
       loadSavedQuiz(savedQuizId);
     } else if (numberOfQuestions) {
+      hasGeneratedRef.current = true;
       generateQuiz();
     }
   }, [numberOfQuestions, isSaved, savedQuizId]);

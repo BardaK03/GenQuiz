@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
-import LayoutWrapper from "../components/LayoutWrapper";
+import "../globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "GenQuiz - Platformă Educațională",
-  description: "Platformă educațională pentru învățare și testare interactivă",
+  title: "Conectare - GenQuiz",
+  description: "Conectează-te la contul tău GenQuiz",
 };
 
-export default function RootLayout({
+export default function LoginLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -18,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="ro">
       <body className={inter.className}>
-        <LayoutWrapper>{children}</LayoutWrapper>
+        <main className="min-h-screen">{children}</main>
       </body>
     </html>
   );

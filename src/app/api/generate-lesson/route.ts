@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { OLLAMA_CONFIG } from "@/lib/ollama";
 import { saveLesson } from "@/lib/db-helpers";
+import { verifyTokenFromRequest } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
+  // Verify authentication first
+  const decoded = verifyTokenFromRequest(request);
+  if (!decoded) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = decoded.userId;
+  
+  // Parse request body once at the beginning
+  let requestBody;
   try {
-    const { subject, technologies } = await request.json();
+    requestBody = await request.json();
+  } catch (error) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const { subject, technologies } = requestBody;
+  
+  try {
 
     // Construim partea despre tehnologii dacă există
     const techSection = technologies && technologies.length > 0 
@@ -90,7 +108,7 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
       .trim();
 
     // Save to database
-    const savedLesson = await saveLesson(subject, responseText);
+    const savedLesson = await saveLesson(subject, responseText, userId);
 
     return NextResponse.json({
       success: true,
@@ -101,17 +119,7 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
   } catch (error) {
     console.error("Error generating lesson:", error);
 
-    // Try to get subject and technologies from request for fallback
-    let subject = "Subiect necunoscut";
-    let technologies = [];
-    try {
-      const { subject: requestSubject, technologies: requestTechnologies } = await request.json();
-      subject = requestSubject || "Subiect necunoscut";
-      technologies = requestTechnologies || [];
-    } catch (parseError) {
-      console.error("Error parsing request for fallback:", parseError);
-    }
-
+    // Use variables from request body for fallback
     const techSection = technologies && technologies.length > 0 
       ? `\n\n## TEHNOLOGII SMARTLAB DISPONIBILE\n${technologies.join(", ")}\n\n## ACTIVITATE PRACTICĂ CU TEHNOLOGII\n- Utilizează tehnologiile disponibile pentru activități interactive\n- Creează exerciții practice adaptate tehnologiilor selectate`
       : "";
@@ -151,7 +159,7 @@ Notă: Această schiță a fost generată automat. Pentru o schiță detaliată,
 
     // Try to save fallback lesson to database
     try {
-      const savedLesson = await saveLesson(subject, fallbackLesson);
+      const savedLesson = await saveLesson(subject, fallbackLesson, userId);
       
       return NextResponse.json({
         success: false,
