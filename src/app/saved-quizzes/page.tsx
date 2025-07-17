@@ -6,7 +6,7 @@ import Link from "next/link";
 interface Quiz {
   id: number;
   subject: string;
-  type: 'multiple-choice' | 'short-answer';
+  type: "multiple-choice" | "short-answer";
   questions: any[];
   created_at: string;
   updated_at: string;
@@ -18,7 +18,9 @@ export default function SavedQuizzesPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
   const [editSubject, setEditSubject] = useState("");
-  const [editType, setEditType] = useState<'multiple-choice' | 'short-answer'>('multiple-choice');
+  const [editType, setEditType] = useState<"multiple-choice" | "short-answer">(
+    "multiple-choice"
+  );
   const [editQuestions, setEditQuestions] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -74,14 +76,21 @@ export default function SavedQuizzesPage() {
 
       if (data.success) {
         // Actualizează quiz-ul în lista locală
-        setQuizzes(quizzes.map(quiz => 
-          quiz.id === editingQuiz.id 
-            ? { ...quiz, subject: editSubject, type: editType, questions: editQuestions }
-            : quiz
-        ));
+        setQuizzes(
+          quizzes.map((quiz) =>
+            quiz.id === editingQuiz.id
+              ? {
+                  ...quiz,
+                  subject: editSubject,
+                  type: editType,
+                  questions: editQuestions,
+                }
+              : quiz
+          )
+        );
         setEditingQuiz(null);
         setEditSubject("");
-        setEditType('multiple-choice');
+        setEditType("multiple-choice");
         setEditQuestions([]);
       } else {
         setError(data.error || "Eroare la salvarea quiz-ului");
@@ -105,7 +114,7 @@ export default function SavedQuizzesPage() {
       const data = await response.json();
 
       if (data.success) {
-        setQuizzes(quizzes.filter(quiz => quiz.id !== id));
+        setQuizzes(quizzes.filter((quiz) => quiz.id !== id));
       } else {
         setError(data.error || "Eroare la ștergerea quiz-ului");
       }
@@ -118,7 +127,7 @@ export default function SavedQuizzesPage() {
   const handleCancel = () => {
     setEditingQuiz(null);
     setEditSubject("");
-    setEditType('multiple-choice');
+    setEditType("multiple-choice");
     setEditQuestions([]);
   };
 
@@ -128,24 +137,29 @@ export default function SavedQuizzesPage() {
     setEditQuestions(updatedQuestions);
   };
 
-  const handleOptionChange = (questionIndex: number, optionIndex: number, value: string) => {
+  const handleOptionChange = (
+    questionIndex: number,
+    optionIndex: number,
+    value: string
+  ) => {
     const updatedQuestions = [...editQuestions];
     updatedQuestions[questionIndex].options[optionIndex] = value;
     setEditQuestions(updatedQuestions);
   };
 
   const addQuestion = () => {
-    const newQuestion = editType === 'multiple-choice' 
-      ? {
-          question: "",
-          options: ["", "", "", ""],
-          correctAnswer: 0
-        }
-      : {
-          question: "",
-          answer: ""
-        };
-    
+    const newQuestion =
+      editType === "multiple-choice"
+        ? {
+            question: "",
+            options: ["", "", "", ""],
+            correctAnswer: 0,
+          }
+        : {
+            question: "",
+            answer: "",
+          };
+
     setEditQuestions([...editQuestions, newQuestion]);
   };
 
@@ -188,7 +202,9 @@ export default function SavedQuizzesPage() {
 
       {quizzes.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-lg mb-4">Nu există quiz-uri salvate</p>
+          <p className="text-gray-500 text-lg mb-4">
+            Nu există quiz-uri salvate
+          </p>
           <Link
             href="/test"
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
@@ -218,17 +234,23 @@ export default function SavedQuizzesPage() {
                       placeholder="Subiectul quiz-ului"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Tip:
                     </label>
                     <select
                       value={editType}
-                      onChange={(e) => setEditType(e.target.value as 'multiple-choice' | 'short-answer')}
+                      onChange={(e) =>
+                        setEditType(
+                          e.target.value as "multiple-choice" | "short-answer"
+                        )
+                      }
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                     >
-                      <option value="multiple-choice">Grile (Multiple Choice)</option>
+                      <option value="multiple-choice">
+                        Grile (Multiple Choice)
+                      </option>
                       <option value="short-answer">Răspuns Scurt</option>
                     </select>
                   </div>
@@ -245,11 +267,16 @@ export default function SavedQuizzesPage() {
                         + Adaugă Întrebare
                       </button>
                     </div>
-                    
+
                     {editQuestions.map((question, qIndex) => (
-                      <div key={qIndex} className="mb-6 p-4 bg-gray-50 rounded-lg">
+                      <div
+                        key={qIndex}
+                        className="mb-6 p-4 bg-gray-50 rounded-lg"
+                      >
                         <div className="flex justify-between items-start mb-3">
-                          <h4 className="font-medium text-gray-800">Întrebarea {qIndex + 1}</h4>
+                          <h4 className="font-medium text-gray-800">
+                            Întrebarea {qIndex + 1}
+                          </h4>
                           <button
                             onClick={() => removeQuestion(qIndex)}
                             className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors"
@@ -257,44 +284,75 @@ export default function SavedQuizzesPage() {
                             Șterge
                           </button>
                         </div>
-                        
+
                         <div className="mb-3">
                           <input
                             type="text"
                             value={question.question}
-                            onChange={(e) => handleQuestionChange(qIndex, 'question', e.target.value)}
+                            onChange={(e) =>
+                              handleQuestionChange(
+                                qIndex,
+                                "question",
+                                e.target.value
+                              )
+                            }
                             className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                             placeholder="Textul întrebării"
                           />
                         </div>
-                        
-                        {editType === 'multiple-choice' ? (
+
+                        {editType === "multiple-choice" ? (
                           <div className="space-y-2">
-                            {question.options?.map((option: string, oIndex: number) => (
-                              <div key={oIndex} className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  name={`correct-${qIndex}`}
-                                  checked={question.correctAnswer === oIndex}
-                                  onChange={() => handleQuestionChange(qIndex, 'correctAnswer', oIndex)}
-                                  className="text-blue-600"
-                                />
-                                <input
-                                  type="text"
-                                  value={option}
-                                  onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
-                                  className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-                                  placeholder={`Opțiunea ${String.fromCharCode(65 + oIndex)}`}
-                                />
-                              </div>
-                            ))}
+                            {question.options?.map(
+                              (option: string, oIndex: number) => (
+                                <div
+                                  key={oIndex}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <input
+                                    type="radio"
+                                    name={`correct-${qIndex}`}
+                                    checked={question.correctAnswer === oIndex}
+                                    onChange={() =>
+                                      handleQuestionChange(
+                                        qIndex,
+                                        "correctAnswer",
+                                        oIndex
+                                      )
+                                    }
+                                    className="text-blue-600"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={option}
+                                    onChange={(e) =>
+                                      handleOptionChange(
+                                        qIndex,
+                                        oIndex,
+                                        e.target.value
+                                      )
+                                    }
+                                    className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                                    placeholder={`Opțiunea ${String.fromCharCode(
+                                      65 + oIndex
+                                    )}`}
+                                  />
+                                </div>
+                              )
+                            )}
                           </div>
                         ) : (
                           <div>
                             <input
                               type="text"
-                              value={question.answer || ''}
-                              onChange={(e) => handleQuestionChange(qIndex, 'answer', e.target.value)}
+                              value={question.answer || ""}
+                              onChange={(e) =>
+                                handleQuestionChange(
+                                  qIndex,
+                                  "answer",
+                                  e.target.value
+                                )
+                              }
                               className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                               placeholder="Răspunsul corect"
                             />
@@ -303,7 +361,7 @@ export default function SavedQuizzesPage() {
                       </div>
                     ))}
                   </div>
-                  
+
                   <div className="flex space-x-3">
                     <button
                       onClick={handleSave}
@@ -330,23 +388,24 @@ export default function SavedQuizzesPage() {
                         {quiz.subject}
                       </h3>
                       <p className="text-sm text-gray-600 mb-1">
-                        <span className="font-medium">Tip:</span> {quiz.type === 'multiple-choice' ? 'Grile' : 'Răspuns Scurt'}
+                        <span className="font-medium">Tip:</span>{" "}
+                        {quiz.type === "multiple-choice"
+                          ? "Grile"
+                          : "Răspuns Scurt"}
                       </p>
                       <p className="text-sm text-gray-600 mb-1">
-                        <span className="font-medium">Întrebări:</span> {quiz.questions.length}
+                        <span className="font-medium">Întrebări:</span>{" "}
+                        {quiz.questions.length}
                       </p>
                       <p className="text-sm text-gray-500">
                         Creat:{" "}
-                        {new Date(quiz.created_at).toLocaleDateString(
-                          "ro-RO",
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
+                        {new Date(quiz.created_at).toLocaleDateString("ro-RO", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </p>
                       {quiz.updated_at !== quiz.created_at && (
                         <p className="text-sm text-gray-500">
@@ -366,7 +425,11 @@ export default function SavedQuizzesPage() {
                     </div>
                     <div className="flex space-x-2">
                       <Link
-                        href={`/quiz?questions=${quiz.questions.length}&subject=${encodeURIComponent(quiz.subject)}&type=${quiz.type}&saved=true&id=${quiz.id}`}
+                        href={`/quiz?questions=${
+                          quiz.questions.length
+                        }&subject=${encodeURIComponent(quiz.subject)}&type=${
+                          quiz.type
+                        }&saved=true&id=${quiz.id}`}
                         className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 transition-colors"
                       >
                         Vizualizează
@@ -386,7 +449,9 @@ export default function SavedQuizzesPage() {
                     </div>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-800 mb-2">Preview întrebări:</h4>
+                    <h4 className="font-medium text-gray-800 mb-2">
+                      Preview întrebări:
+                    </h4>
                     <div className="space-y-2 text-sm text-gray-700">
                       {quiz.questions.slice(0, 3).map((question, index) => (
                         <div key={index}>

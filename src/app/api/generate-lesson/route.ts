@@ -4,9 +4,15 @@ import { saveLesson } from "@/lib/db-helpers";
 
 export async function POST(request: NextRequest) {
   try {
-    const { subject } = await request.json();
+    const { subject, technologies } = await request.json();
 
-    const prompt = `Comporta te ca si un profesor cu experienta de zeci de ani in predarea biologiei,generă-mi in limba romana,cu un limbaj corect gramatical, o schiță detaliată de lecție(50 de minute durata ) pentru subiectul ${subject}
+    // Construim partea despre tehnologii dacă există
+    const techSection = technologies && technologies.length > 0 
+      ? `\n\nIMPORTANT: Pentru activitatea practică, utilizează următoarele tehnologii disponibile în SmartLab: ${technologies.join(", ")}. 
+      Creează o activitate practică specifică și detaliată folosind aceste tehnologii, cu pași clari pe care profesorul poate să-i urmeze cu elevii.`
+      : "";
+
+    const prompt = `Comporta te ca si un profesor cu experienta de zeci de ani in predarea biologiei,generă-mi in limba romana,cu un limbaj corect gramatical, o schiță detaliată de lecție(50 de minute durata ) pentru subiectul ${subject}${techSection}
 
 IMPORTANT: Returnează doar conținutul schiței de lecție, fără formatare JSON sau alte elemente.
 
@@ -18,11 +24,11 @@ Schița trebuie să includă:
 ●	Structură pe secțiuni:
 ●	Introducere 
 ●	Prezentare teoretică (puncte cheie, explicații)
-●	Activitate practică (exercițiu, problemă de rezolvat)
+●	Activitate practică (exercițiu, problemă de rezolvat)${technologies && technologies.length > 0 ? " - foloseste tehnologiile mentionate mai sus" : ""}
 ●	Evaluare formativă (întrebări, discuție)
 ●	Concluzii + temă/următorii pași (nu folosi analogii)
 ●	Durată estimată: Include timp recomandat pentru fiecare secțiune.
-●	Resurse și materiale:foloseste ce se gaseste de obicei in cadrul unei scoli ,sau acasa(fara linkuri)
+●	Resurse și materiale:foloseste ce se gaseste de obicei in cadrul unei scoli ,sau acasa(fara linkuri)${technologies && technologies.length > 0 ? " si tehnologiile SmartLab mentionate" : ""}
 ●	Ton și stil: Clar, concis, orientat spre pedagogie activă. foloseste schitele din memoria ta pentru a vedea cum trebuie sa arate o astfel de schita,schita generata de tine nu trebuie sa fie lunga,si trebuie sa contina doar ce ti am cerut
 
 
@@ -95,14 +101,20 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
   } catch (error) {
     console.error("Error generating lesson:", error);
 
-    // Try to get subject from request for fallback
+    // Try to get subject and technologies from request for fallback
     let subject = "Subiect necunoscut";
+    let technologies = [];
     try {
-      const { subject: requestSubject } = await request.json();
+      const { subject: requestSubject, technologies: requestTechnologies } = await request.json();
       subject = requestSubject || "Subiect necunoscut";
+      technologies = requestTechnologies || [];
     } catch (parseError) {
       console.error("Error parsing request for fallback:", parseError);
     }
+
+    const techSection = technologies && technologies.length > 0 
+      ? `\n\n## TEHNOLOGII SMARTLAB DISPONIBILE\n${technologies.join(", ")}\n\n## ACTIVITATE PRACTICĂ CU TEHNOLOGII\n- Utilizează tehnologiile disponibile pentru activități interactive\n- Creează exerciții practice adaptate tehnologiilor selectate`
+      : "";
 
     // Return fallback lesson
     const fallbackLesson = `# SCHIȚĂ DE LECȚIE - ${subject}
@@ -124,7 +136,7 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
 ## ACTIVITĂȚI PROPUSE
 - Discuții interactive
 - Exerciții practice
-- Activități de grup
+- Activități de grup${techSection}
 
 ## EVALUARE
 - Întrebări orale
