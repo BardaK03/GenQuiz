@@ -6,6 +6,7 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  isAdmin?: boolean;
 }
 
 export function verifyToken(token: string): AuthUser | null {
@@ -33,4 +34,14 @@ export function verifyTokenFromRequest(request: NextRequest): AuthUser | null {
     console.error("Token verification error:", error);
     return null;
   }
+}
+
+export function verifyAdminFromRequest(request: NextRequest): AuthUser | null {
+  const user = verifyTokenFromRequest(request);
+  
+  if (!user || !user.isAdmin) {
+    return null;
+  }
+  
+  return user;
 }

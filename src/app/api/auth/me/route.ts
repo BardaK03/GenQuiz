@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
     const { password, ...userWithoutPassword } = user;
     
     return NextResponse.json({ 
-      user: userWithoutPassword,
+      user: {
+        ...userWithoutPassword,
+        isAdmin: user.is_admin || false
+      },
       message: "Authenticated successfully" 
     });
 

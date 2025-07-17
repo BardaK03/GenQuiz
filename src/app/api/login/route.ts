@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
+        isAdmin: user.is_admin || false,
       },
       jwtSecret,
       { expiresIn: "24h" }

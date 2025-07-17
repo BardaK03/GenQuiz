@@ -25,6 +25,7 @@ export interface User {
   last_name: string;
   email: string;
   password: string;
+  is_admin?: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -41,19 +42,24 @@ export async function createUser(
     VALUES ($1, $2, $3, $4)
     RETURNING *
   `;
-  
-  const result = await pool.query(query, [firstName, lastName, email, hashedPassword]);
+
+  const result = await pool.query(query, [
+    firstName,
+    lastName,
+    email,
+    hashedPassword,
+  ]);
   return result.rows[0];
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const query = 'SELECT * FROM users WHERE email = $1';
+  const query = "SELECT * FROM users WHERE email = $1";
   const result = await pool.query(query, [email]);
   return result.rows[0] || null;
 }
 
 export async function getUserById(id: number): Promise<User | null> {
-  const query = 'SELECT * FROM users WHERE id = $1';
+  const query = "SELECT * FROM users WHERE id = $1";
   const result = await pool.query(query, [id]);
   return result.rows[0] || null;
 }
@@ -87,7 +93,8 @@ export async function getAllQuizzes(): Promise<Quiz[]> {
 }
 
 export async function getQuizzesByUserId(userId: number): Promise<Quiz[]> {
-  const query = "SELECT * FROM quizzes WHERE user_id = $1 ORDER BY created_at DESC";
+  const query =
+    "SELECT * FROM quizzes WHERE user_id = $1 ORDER BY created_at DESC";
   const result = await pool.query(query, [userId]);
   return result.rows;
 }
@@ -98,7 +105,10 @@ export async function getQuizById(id: number): Promise<Quiz | null> {
   return result.rows[0] || null;
 }
 
-export async function getQuizByIdAndUserId(id: number, userId: number): Promise<Quiz | null> {
+export async function getQuizByIdAndUserId(
+  id: number,
+  userId: number
+): Promise<Quiz | null> {
   const query = "SELECT * FROM quizzes WHERE id = $1 AND user_id = $2";
   const result = await pool.query(query, [id, userId]);
   return result.rows[0] || null;
@@ -111,7 +121,10 @@ export async function getQuizzesBySubject(subject: string): Promise<Quiz[]> {
   return result.rows;
 }
 
-export async function getQuizzesBySubjectAndUserId(subject: string, userId: number): Promise<Quiz[]> {
+export async function getQuizzesBySubjectAndUserId(
+  subject: string,
+  userId: number
+): Promise<Quiz[]> {
   const query =
     "SELECT * FROM quizzes WHERE subject = $1 AND user_id = $2 ORDER BY created_at DESC";
   const result = await pool.query(query, [subject, userId]);
@@ -141,7 +154,8 @@ export async function getAllLessons(): Promise<Lesson[]> {
 }
 
 export async function getLessonsByUserId(userId: number): Promise<Lesson[]> {
-  const query = "SELECT * FROM lessons WHERE user_id = $1 ORDER BY created_at DESC";
+  const query =
+    "SELECT * FROM lessons WHERE user_id = $1 ORDER BY created_at DESC";
   const result = await pool.query(query, [userId]);
   return result.rows;
 }
@@ -152,7 +166,10 @@ export async function getLessonById(id: number): Promise<Lesson | null> {
   return result.rows[0] || null;
 }
 
-export async function getLessonByIdAndUserId(id: number, userId: number): Promise<Lesson | null> {
+export async function getLessonByIdAndUserId(
+  id: number,
+  userId: number
+): Promise<Lesson | null> {
   const query = "SELECT * FROM lessons WHERE id = $1 AND user_id = $2";
   const result = await pool.query(query, [id, userId]);
   return result.rows[0] || null;
@@ -165,7 +182,10 @@ export async function getLessonsBySubject(subject: string): Promise<Lesson[]> {
   return result.rows;
 }
 
-export async function getLessonsBySubjectAndUserId(subject: string, userId: number): Promise<Lesson[]> {
+export async function getLessonsBySubjectAndUserId(
+  subject: string,
+  userId: number
+): Promise<Lesson[]> {
   const query =
     "SELECT * FROM lessons WHERE subject = $1 AND user_id = $2 ORDER BY created_at DESC";
   const result = await pool.query(query, [subject, userId]);
@@ -190,7 +210,10 @@ export async function updateLesson(
   return result.rows[0] || null;
 }
 
-export async function deleteLesson(id: number, userId: number): Promise<boolean> {
+export async function deleteLesson(
+  id: number,
+  userId: number
+): Promise<boolean> {
   const query = "DELETE FROM lessons WHERE id = $1 AND user_id = $2";
   const result = await pool.query(query, [id, userId]);
   return (result.rowCount || 0) > 0;
@@ -225,4 +248,183 @@ export async function deleteQuiz(id: number, userId: number): Promise<boolean> {
   const query = "DELETE FROM quizzes WHERE id = $1 AND user_id = $2";
   const result = await pool.query(query, [id, userId]);
   return (result.rowCount || 0) > 0;
+}
+
+// RAG Documents interface
+export interface RagDocument {
+  id: number;
+  title: string;
+  content: string;
+  category: string | null;
+  file_name: string | null;
+  file_type: string | null;
+  file_size: number | null;
+  uploaded_by: number;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Save RAG document
+export async function saveRagDocument(
+  title: string,
+  content: string,
+  category: string | null,
+  fileName: string | null,
+  fileType: string | null,
+  fileSize: number | null,
+  uploadedBy: number
+): Promise<{ success: boolean; documentId?: number; error?: string }> {
+  try {
+    const query = `
+      INSERT INTO rag_documents (title, content, category, file_name, file_type, file_size, uploaded_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
+    `;
+
+    const result = await pool.query(query, [
+      title,
+      content,
+      category,
+      fileName,
+      fileType,
+      fileSize,
+      uploadedBy,
+    ]);
+
+    return {
+      success: true,
+      documentId: result.rows[0].id,
+    };
+  } catch (error) {
+    console.error("Error saving RAG document:", error);
+    return {
+      success: false,
+      error: "Failed to save document",
+    };
+  }
+}
+
+// Get all RAG documents
+export async function getRagDocuments(): Promise<RagDocument[]> {
+  try {
+    const query = `
+      SELECT rd.*, u.first_name, u.last_name 
+      FROM rag_documents rd
+      JOIN users u ON rd.uploaded_by = u.id
+      ORDER BY rd.created_at DESC
+    `;
+
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (error) {
+    console.error("Error getting RAG documents:", error);
+    return [];
+  }
+}
+
+// Get RAG document by ID
+export async function getRagDocumentById(
+  id: number
+): Promise<RagDocument | null> {
+  try {
+    const query = `
+      SELECT rd.*, u.first_name, u.last_name 
+      FROM rag_documents rd
+      JOIN users u ON rd.uploaded_by = u.id
+      WHERE rd.id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error("Error getting RAG document by ID:", error);
+    return null;
+  }
+}
+
+// Update RAG document
+export async function updateRagDocument(
+  id: number,
+  title: string,
+  content: string,
+  category: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const query = `
+      UPDATE rag_documents 
+      SET title = $1, content = $2, category = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $4
+    `;
+
+    await pool.query(query, [title, content, category, id]);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating RAG document:", error);
+    return {
+      success: false,
+      error: "Failed to update document",
+    };
+  }
+}
+
+// Delete RAG document
+export async function deleteRagDocument(
+  id: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const query = "DELETE FROM rag_documents WHERE id = $1";
+    await pool.query(query, [id]);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting RAG document:", error);
+    return {
+      success: false,
+      error: "Failed to delete document",
+    };
+  }
+}
+
+// Get RAG documents by category
+export async function getRagDocumentsByCategory(
+  category: string
+): Promise<RagDocument[]> {
+  try {
+    const query = `
+      SELECT * FROM rag_documents 
+      WHERE category = $1 AND is_active = true
+      ORDER BY created_at DESC
+    `;
+
+    const result = await pool.query(query, [category]);
+    return result.rows;
+  } catch (error) {
+    console.error("Error getting RAG documents by category:", error);
+    return [];
+  }
+}
+
+// Toggle RAG document status
+export async function toggleRagDocumentStatus(
+  id: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const query = `
+      UPDATE rag_documents 
+      SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `;
+
+    await pool.query(query, [id]);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error toggling RAG document status:", error);
+    return {
+      success: false,
+      error: "Failed to toggle document status",
+    };
+  }
 }

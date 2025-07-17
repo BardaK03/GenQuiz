@@ -9,6 +9,7 @@ interface User {
   first_name: string;
   last_name: string;
   email: string;
+  isAdmin?: boolean;
 }
 
 export default function Sidebar() {
@@ -23,6 +24,8 @@ export default function Sidebar() {
     { name: "Quiz-uri Salvate", path: "/saved-quizzes" },
     { name: "Resurse SmartLab", path: "/resurse" },
   ];
+
+  const adminNavItems = [{ name: "🔧 Admin Panel", path: "/admin" }];
 
   useEffect(() => {
     checkAuthStatus();
@@ -100,6 +103,33 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Admin section */}
+        {user?.isAdmin && (
+          <>
+            <div className="border-t border-gray-200 my-2"></div>
+            {adminNavItems.map((item) => {
+              const isActive = pathname === item.path;
+
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={`
+                    py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center text-center text-sm
+                    ${
+                      isActive
+                        ? "bg-red-100 text-red-700 font-medium"
+                        : "text-gray-700 hover:bg-red-50"
+                    }
+                  `}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* User section */}
