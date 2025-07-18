@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import {
+  availableClasses,
+  availableSubjects,
+  getTopicsForSubject,
+  getSubjectName,
+  getClassName,
+} from "@/lib/subjects";
 
 interface Technology {
   id: string;
@@ -22,6 +29,8 @@ const availableTechnologies: Technology[] = [
 ];
 
 export default function ResursePage() {
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
   const [subject, setSubject] = useState("");
   const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>(
     []
@@ -30,6 +39,11 @@ export default function ResursePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ragInfo, setRagInfo] = useState<any>(null);
+
+  // Obține subiectele pentru materia selectată
+  const availableTopics = selectedSubject
+    ? getTopicsForSubject(selectedSubject)
+    : [];
 
   const handleTechnologyChange = (techId: string) => {
     setSelectedTechnologies((prev) =>
@@ -40,6 +54,16 @@ export default function ResursePage() {
   };
 
   const generateLesson = async () => {
+    if (!selectedClass) {
+      setError("Te rog selectează clasa");
+      return;
+    }
+
+    if (!selectedSubject) {
+      setError("Te rog selectează materia");
+      return;
+    }
+
     if (!subject.trim()) {
       setError("Te rog introdu un subiect pentru lecție");
       return;
@@ -73,6 +97,8 @@ export default function ResursePage() {
         body: JSON.stringify({
           subject: subject.trim(),
           technologies: selectedTechNames,
+          classLevel: selectedClass,
+          subjectName: selectedSubject,
         }),
       });
 
@@ -164,17 +190,74 @@ export default function ResursePage() {
           )}
 
           <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Selectează clasa:
+                </label>
+                <select
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black bg-white"
+                >
+                  <option value="">Alege clasa...</option>
+                  {availableClasses.map((cls) => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Selectează materia:
+                </label>
+                <select
+                  value={selectedSubject}
+                  onChange={(e) => {
+                    setSelectedSubject(e.target.value);
+                    setSubject(""); // resetează subiectul când se schimbă materia
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black bg-white"
+                >
+                  <option value="">Alege materia...</option>
+                  {availableSubjects.map((subj) => (
+                    <option key={subj.id} value={subj.id}>
+                      {subj.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Subiectul lecției:
               </label>
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black bg-white"
-                placeholder="Ex: Programarea robotului, Imprimarea 3D, IoT și senzorii..."
-              />
+              {selectedSubject ? (
+                <select
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black bg-white"
+                >
+                  <option value="">Alege subiectul...</option>
+                  {availableTopics.map((topic) => (
+                    <option key={topic} value={topic}>
+                      {topic}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black bg-white"
+                  placeholder="Selectează mai întâi materia..."
+                  disabled
+                />
+              )}
             </div>
 
             <div>
@@ -241,6 +324,8 @@ export default function ResursePage() {
                   onClick={() => {
                     setLesson(null);
                     setSubject("");
+                    setSelectedClass("");
+                    setSelectedSubject("");
                     setSelectedTechnologies([]);
                     setError(null);
                     setRagInfo(null);

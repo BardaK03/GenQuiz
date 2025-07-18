@@ -3,6 +3,7 @@ import { OLLAMA_CONFIG } from "@/lib/ollama";
 import { saveLesson } from "@/lib/db-helpers";
 import { verifyTokenFromRequest } from "@/lib/auth";
 import { DocumentProcessor } from "@/lib/document-processor";
+import { getSubjectName, getClassName, availableClasses } from "@/lib/subjects";
 
 export async function POST(request: NextRequest) {
   // Verify authentication first
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { subject, technologies } = requestBody;
+  const { subject, technologies, classLevel, subjectName, topic } = requestBody;
 
   try {
     // Obține context RAG relevant pentru subiect
@@ -32,19 +33,26 @@ export async function POST(request: NextRequest) {
     let ragDocuments: any[] = [];
 
     try {
-      console.log(`🔍 Searching for RAG context for subject: ${subject}`);
+      // Construim query pentru RAG care include atât topic-ul cât și subiectul specific
+      const ragQuery = topic || subject;
+      console.log(
+        `🔍 Searching for RAG context for user ${userId} with query: ${ragQuery}`
+      );
 
-      // Caută chunks-uri similare cu subiectul
-      const similarChunks = await DocumentProcessor.searchSimilarChunks(
-        `${subject} ${technologies ? technologies.join(" ") : ""}`,
+      // Caută chunks-uri similare doar pentru documentele utilizatorului curent
+      const similarChunks = await DocumentProcessor.searchSimilarChunksForUser(
+        ragQuery,
+        userId, // folosește userId-ul utilizatorului autentificat
         5, // max 5 chunks
         0.6 // similarity threshold
       );
 
-      console.log(`📚 Found ${similarChunks.length} similar chunks`);
+      console.log(
+        `📚 Found ${similarChunks.length} similar chunks for user ${userId}`
+      );
 
       if (similarChunks.length > 0) {
-        ragContext = `\n\nCONTEXT DOCUMENTAȚIE SMARTLAB:\n`;
+        ragContext = `\n\nCONTEXT DOCUMENTAȚIE PERSONALĂ:\n`;
         ragContext += similarChunks
           .map((chunk, index) => {
             console.log(
@@ -56,7 +64,7 @@ export async function POST(request: NextRequest) {
           })
           .join("\n\n");
 
-        ragContext += `\n\nIMPORTANT: Folosește informațiile din documentația SmartLab de mai sus pentru a crea activități practice specifice și detaliate.`;
+        ragContext += `\n\nIMPORTANT: Folosește informațiile din documentația ta personală de mai sus pentru a crea activități practice specifice și detaliate.`;
 
         ragDocuments = similarChunks.map((chunk) => ({
           title: chunk.document_title,
@@ -64,9 +72,13 @@ export async function POST(request: NextRequest) {
           similarity: chunk.similarity,
         }));
 
-        console.log(`✅ RAG context prepared: ${ragContext.length} characters`);
+        console.log(
+          `✅ RAG context prepared for user ${userId}: ${ragContext.length} characters`
+        );
       } else {
-        console.log(`⚠️ No similar chunks found for query: ${subject}`);
+        console.log(
+          `⚠️ No similar chunks found for user ${userId} with query: ${ragQuery}`
+        );
       }
     } catch (ragError) {
       console.error("❌ RAG search error:", ragError);
@@ -79,18 +91,24 @@ export async function POST(request: NextRequest) {
         ? `\n\nIMPORTANT: Pentru activitatea practică, utilizează următoarele tehnologii disponibile în SmartLab: ${technologies.join(
             ", "
           )}. 
-      Creează o activitate practică specifică și detaliată folosind aceste tehnologii, cu pași clari pe care profesorul poate să-i urmeze cu elevii.`
+      Creează o activitate practică specifică și detaliată folosind aceste tehnologii, cu pași clari pe care profesorul poate să-i urmeze cu elevii, doar daca tehnologiile selectate sunt compatibile cu subiectul ales. In cazul in care nu sunt compatibile, creaza materiale fara a folosi tehnologiile alese.`
         : "";
 
-    const prompt = `Comporta te ca si un profesor cu experienta de zeci de ani in predarea biologiei,generă-mi in limba romana,cu un limbaj corect gramatical, o schiță detaliată de lecție(50 de minute durata ) pentru subiectul ${subject}${techSection}${ragContext}
+    // Obține numele materiei și clasei
+    const subjectDisplayName = getSubjectName(subjectName) || "această materie";
+    const classDisplayName = getClassName(classLevel) || "această clasă";
+    const classNumber =
+      availableClasses.find((c) => c.id === classLevel)?.level || 11;
+
+    const prompt = `Comporta te ca si un profesor cu experienta de zeci de ani in predarea ${subjectDisplayName.toLowerCase()}, generă-mi in limba romana, cu un limbaj corect gramatical, o schiță detaliată de lecție (50 de minute durata) pentru subiectul/capitolul "${topic}" din ${subjectDisplayName.toLowerCase()}${techSection}${ragContext}
 
 IMPORTANT: Returnează doar conținutul schiței de lecție, fără formatare JSON sau alte elemente.
 
 Schița trebuie să includă:
 
 
-●	Context și audiență: Lecția este destinată elevilor/studenților de nivel liceal cu cunoștințe anterioare minime în domeniu
-●	Obiective de învățare: Specifică 3–5 obiective clare și măsurabile la începutul lecției.
+●	Context și audiență: Lecția este destinată elevilor de ${classDisplayName} cu cunoștințe anterioare în ${subjectDisplayName.toLowerCase()}
+●	Obiective de învățare: Specifică 3–5 obiective clare și măsurabile la începutul lecției pentru subiectul "${topic}".
 ●	Structură pe secțiuni:
 ●	Introducere 
 ●	Prezentare teoretică (puncte cheie, explicații)
@@ -106,18 +124,22 @@ Schița trebuie să includă:
       technologies && technologies.length > 0
         ? " si tehnologiile SmartLab mentionate"
         : ""
-    }
+    }${ragContext ? " și documentația ta personală încărcată" : ""}
 ●	Ton și stil: Clar, concis, orientat spre pedagogie activă. foloseste schitele din memoria ta pentru a vedea cum trebuie sa arate o astfel de schita,schita generata de tine nu trebuie sa fie lunga,si trebuie sa contina doar ce ti am cerut
 
 
 Cerințe:
-- Să respecte programa școlară română pentru clasa a 11-a
-- Să includă termeni științifici corecți în română
+- Să respecte programa școlară română pentru ${classDisplayName}
+- Să includă termeni științifici corecți în română pentru ${subjectDisplayName.toLowerCase()}
 - Să fie adaptată pentru o lecție de 50 de minute
 - Să includă activități interactive și moderne
-- Să fie structurată clar și ușor de urmărit pentru profesor
+- Să fie structurată clar și ușor de urmărit pentru profesor${
+      ragContext
+        ? "\n- Să integreze informațiile din documentația ta personală acolo unde este relevant"
+        : ""
+    }
 -respecta urmatorul format:
-# Titlu lecției: ${subject}
+# Titlu lecției: ${topic}
 Obiectivele lecției:
 1. Obiectiv 1
 2. Obiectiv 2
@@ -168,12 +190,16 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
       .trim();
 
     // Save to database
-    const savedLesson = await saveLesson(subject, responseText, userId);
+    const savedLesson = await saveLesson(
+      topic || subject,
+      responseText,
+      userId
+    );
 
     return NextResponse.json({
       success: true,
       lesson: responseText,
-      subject: subject,
+      subject: topic || subject,
       lessonId: savedLesson.id,
       // Adaug informații RAG
       rag_info: {
@@ -194,7 +220,7 @@ Returnează doar conținutul schiței, formatat frumos cu titluri clare și stru
         : "";
 
     // Return fallback lesson
-    const fallbackLesson = `# SCHIȚĂ DE LECȚIE - ${subject}
+    const fallbackLesson = `# SCHIȚĂ DE LECȚIE - ${topic || subject}
 
 ## OBIECTIVELE LECȚIEI
 - Să înțeleagă conceptele de bază
@@ -228,13 +254,17 @@ Notă: Această schiță a fost generată automat. Pentru o schiță detaliată,
 
     // Try to save fallback lesson to database
     try {
-      const savedLesson = await saveLesson(subject, fallbackLesson, userId);
+      const savedLesson = await saveLesson(
+        topic || subject,
+        fallbackLesson,
+        userId
+      );
 
       return NextResponse.json({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         lesson: fallbackLesson,
-        subject: subject,
+        subject: topic || subject,
         lessonId: savedLesson.id,
       });
     } catch (dbError) {
@@ -244,7 +274,7 @@ Notă: Această schiță a fost generată automat. Pentru o schiță detaliată,
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         lesson: fallbackLesson,
-        subject: subject,
+        subject: topic || subject,
       });
     }
   }

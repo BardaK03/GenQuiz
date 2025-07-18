@@ -20,13 +20,15 @@ export default function QuizPage() {
 
   const numberOfQuestions = searchParams.get("questions");
   const subject = searchParams.get("subject") || "general knowledge";
+  const topic = searchParams.get("topic") || "";
+  const classLevel = searchParams.get("class") || "";
   const questionType = searchParams.get("type") || "multiple-choice";
   const isSaved = searchParams.get("saved") === "true";
   const savedQuizId = searchParams.get("id");
 
   useEffect(() => {
     if (hasGeneratedRef.current) return;
-    
+
     if (isSaved && savedQuizId) {
       hasGeneratedRef.current = true;
       loadSavedQuiz(savedQuizId);
@@ -71,6 +73,9 @@ export default function QuizPage() {
         body: JSON.stringify({
           numberOfQuestions: parseInt(numberOfQuestions!),
           subject: subject,
+          topic: topic,
+          classLevel: classLevel,
+          subjectName: subject,
           type: questionType,
         }),
       });

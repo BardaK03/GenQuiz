@@ -22,6 +22,7 @@ export default function Sidebar() {
     { name: "Test", path: "/test" },
     { name: "Lecții Salvate", path: "/saved-lessons" },
     { name: "Quiz-uri Salvate", path: "/saved-quizzes" },
+    { name: "Documentele Mele", path: "/my-documents" },
     { name: "Resurse SmartLab", path: "/resurse" },
   ];
 

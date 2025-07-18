@@ -224,7 +224,7 @@ export class DocumentProcessor {
   }
 
   /**
-   * Caută chunks similare cu un query
+   * Caută chunks similare cu un query (toate documentele - pentru admin sau cazuri speciale)
    */
   static async searchSimilarChunks(
     queryText: string,
@@ -253,6 +253,41 @@ export class DocumentProcessor {
     } catch (error) {
       console.error("Error searching similar chunks:", error);
       throw new Error("Failed to search similar chunks");
+    }
+  }
+
+  /**
+   * Caută chunks similare cu un query doar pentru documentele unui utilizator specific
+   */
+  static async searchSimilarChunksForUser(
+    queryText: string,
+    userId: number,
+    maxResults: number = 10,
+    similarityThreshold: number = 0.7
+  ): Promise<SimilarChunk[]> {
+    try {
+      // Generează embedding pentru query
+      const queryEmbedding = await this.generateEmbedding(queryText);
+
+      // Importă pool pentru database
+      const pool = (await import("./database")).default;
+
+      // Caută chunks similare doar pentru utilizatorul specificat
+      const query = `
+        SELECT * FROM search_similar_chunks_for_user($1::real[], $2, $3, $4)
+      `;
+
+      const result = await pool.query(query, [
+        queryEmbedding,
+        userId,
+        similarityThreshold,
+        maxResults,
+      ]);
+
+      return result.rows;
+    } catch (error) {
+      console.error("Error searching similar chunks for user:", error);
+      throw new Error("Failed to search similar chunks for user");
     }
   }
 

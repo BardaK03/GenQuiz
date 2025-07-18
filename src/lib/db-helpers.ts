@@ -323,6 +323,26 @@ export async function getRagDocuments(): Promise<RagDocument[]> {
   }
 }
 
+// Get RAG documents by user
+export async function getRagDocumentsByUser(userId: number): Promise<RagDocument[]> {
+  try {
+    const query = `
+      SELECT rd.*, u.first_name, u.last_name,
+      (SELECT COUNT(*) FROM document_chunks dc WHERE dc.document_id = rd.id) as chunks_count
+      FROM rag_documents rd
+      JOIN users u ON rd.uploaded_by = u.id
+      WHERE rd.uploaded_by = $1
+      ORDER BY rd.created_at DESC
+    `;
+
+    const result = await pool.query(query, [userId]);
+    return result.rows;
+  } catch (error) {
+    console.error("Error getting RAG documents by user:", error);
+    return [];
+  }
+}
+
 // Get RAG document by ID
 export async function getRagDocumentById(
   id: number
